@@ -44,6 +44,7 @@ struct FileWriterImpl
 };
 
 extern FileWriterImpl wav_plugin;
+extern FileWriterImpl dsf_plugin;
 
 #ifdef FILEWRITER_MP3
 extern FileWriterImpl mp3_plugin;

@@ -24,6 +24,7 @@
 #include <libaudcore/runtime.h>
 #include <libaudcore/plugin.h>
 #include <libaudcore/preferences.h>
+#include <libaudcore/audio.h>
 
 #include <bs2b.h>
 
@@ -47,7 +48,7 @@ public:
     void cleanup ();
 
     void start (int & channels, int & rate);
-    Index<float> & process (Index<float> & data);
+    Index<audio_sample> & process (Index<audio_sample> & data);
 };
 
 EXPORT BS2BPlugin aud_plugin_instance;
@@ -86,10 +87,15 @@ void BS2BPlugin::start (int & channels, int & rate)
     bs2b_set_srate (bs2b, rate);
 }
 
-Index<float> & BS2BPlugin::process (Index<float> & data)
+Index<audio_sample> & BS2BPlugin::process (Index<audio_sample> & data)
 {
     if (bs2b_channels == 2)
+
+#ifdef DEF_AUDIO_FLOAT64
+        bs2b_cross_feed_d (bs2b, data.begin (), data.len () / 2);
+#else
         bs2b_cross_feed_f (bs2b, data.begin (), data.len () / 2);
+#endif
 
     return data;
 }

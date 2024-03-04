@@ -6,7 +6,7 @@ static int in_fmt;
 static int out_fmt;
 
 static Index<char> convert_output;
-static Index<float> convert_temp;
+static Index<audio_sample> convert_temp;
 
 void convert_init (int input_fmt, int output_fmt)
 {
@@ -22,10 +22,10 @@ const Index<char> & convert_process (const void * ptr, int length)
 
     if (in_fmt == out_fmt)
         memcpy (convert_output.begin (), ptr, FMT_SIZEOF (in_fmt) * samples);
-    else if (in_fmt == FMT_FLOAT)
-        audio_to_int ((const float *) ptr, convert_output.begin (), out_fmt, samples);
-    else if (out_fmt == FMT_FLOAT)
-        audio_from_int (ptr, in_fmt, (float *) convert_output.begin (), samples);
+    else if (in_fmt == FMT_AUDIO_SAMPLE)
+        audio_to_int ((const audio_sample *) ptr, convert_output.begin (), out_fmt, samples);
+    else if (out_fmt == FMT_AUDIO_SAMPLE)
+        audio_from_int (ptr, in_fmt, (audio_sample *) convert_output.begin (), samples);
     else
     {
         convert_temp.resize (samples);

@@ -32,7 +32,7 @@ public:
     constexpr VoiceRemoval () : EffectPlugin (info, 0, true) {}
 
     void start (int & channels, int & rate);
-    Index<float> & process (Index<float> & data);
+    Index<audio_sample> & process (Index<audio_sample> & data);
 };
 
 EXPORT VoiceRemoval aud_plugin_instance;
@@ -44,14 +44,14 @@ void VoiceRemoval::start (int & channels, int & rate)
     voice_channels = channels;
 }
 
-Index<float> & VoiceRemoval::process (Index<float> & data)
+Index<audio_sample> & VoiceRemoval::process (Index<audio_sample> & data)
 {
     if (voice_channels != 2)
         return data;
 
-    float * end = data.end ();
+    audio_sample * end = data.end ();
 
-    for (float * f = data.begin (); f < end; f += 2)
+    for (audio_sample * f = data.begin (); f < end; f += 2)
     {
         f[0] -= f[1];
         f[1] = f[0];

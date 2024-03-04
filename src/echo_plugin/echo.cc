@@ -48,12 +48,12 @@ public:
     void cleanup ();
 
     void start (int & channels, int & rate);
-    Index<float> & process (Index<float> & data);
+    Index<audio_sample> & process (Index<audio_sample> & data);
 };
 
 EXPORT EchoPlugin aud_plugin_instance;
 
-static Index<float> buffer;
+static Index<audio_sample> buffer;
 static int w_ofs;
 
 bool EchoPlugin::init ()
@@ -84,7 +84,7 @@ void EchoPlugin::start (int & channels, int & rate)
     }
 }
 
-Index<float> & EchoPlugin::process (Index<float> & data)
+Index<audio_sample> & EchoPlugin::process (Index<audio_sample> & data)
 {
     int delay = aud_get_int ("echo_plugin", "delay");
     float feedback = aud_get_int ("echo_plugin", "feedback") / 100.0f;
@@ -97,12 +97,12 @@ Index<float> & EchoPlugin::process (Index<float> & data)
     if (r_ofs < 0)
         r_ofs += buffer.len ();
 
-    float * end = data.end ();
+    const audio_sample * end = data.end ();
 
-    for (float * f = data.begin (); f < end; f++)
+    for (audio_sample * f = data.begin (); f < end; f++)
     {
-        float in = * f;
-        float buf = buffer[r_ofs];
+        audio_sample in = * f;
+        audio_sample buf = buffer[r_ofs];
 
         * f = in + buf * volume;
         buffer[w_ofs] = in + buf * feedback;

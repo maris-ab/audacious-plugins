@@ -66,13 +66,13 @@ public:
     bool flush (bool force);
     int adjust_delay (int delay);
 
-    Index<float> & process (Index<float> & samples)
+    Index<audio_sample> & process (Index<audio_sample> & samples)
         { return process (samples, false); }
-    Index<float> & finish (Index<float> & samples, bool end_of_playlist)
+    Index<audio_sample> & finish (Index<audio_sample> & samples, bool end_of_playlist)
         { return process (samples, true); }
 
 private:
-    Index<float> & process (Index<float> & samples, bool ending);
+    Index<audio_sample> & process (Index<audio_sample> & samples, bool ending);
 };
 
 EXPORT SpeedPitch aud_plugin_instance;
@@ -82,26 +82,60 @@ static int curchans, currate;
 static SRC_STATE * srcstate;
 static int outstep, width;
 static Index<float> cosine;
-static Index<float> in, out;
+static Index<audio_sample> in, out;
 static int src, dst;
 
-static void add_data (Index<float> & b, Index<float> & data, float ratio)
+static void add_data (Index<audio_sample> & b_out, Index<audio_sample> & data, float ratio)
 {
-    int oldlen = b.len ();
+    int oldlen = b_out.len ();
     int inframes = data.len () / curchans;
     int maxframes = (int) (inframes * ratio) + 256;
-    b.resize (oldlen + maxframes * curchans);
 
-    SRC_DATA d = SRC_DATA ();
+#ifdef DEF_AUDIO_FLOAT64
+    static Index<float> floatbuf_in;
+    floatbuf_in.resize (data.len ());
+    float * fout = floatbuf_in.begin ();
+    audio_sample * fin = data.begin ();
+    const audio_sample * fend = data.end ();
+    while (fin < fend)
+    {
+        *(fout++) = *(fin++);
+    }
+    static Index<float> floatbuf_out;
+    floatbuf_out.resize (maxframes * curchans);
 
-    d.data_in = data.begin ();
-    d.input_frames = inframes;
-    d.data_out = & b[oldlen];
-    d.output_frames = maxframes;
-    d.src_ratio = ratio;
+    SRC_DATA srcd = SRC_DATA ();
+    srcd.data_in = floatbuf_in.begin ();
+    srcd.data_out = floatbuf_out.begin ();
+#else
+    b_out.resize (oldlen + maxframes * curchans);
 
-    src_process (srcstate, & d);
-    b.resize (oldlen + d.output_frames_gen * curchans);
+    SRC_DATA srcd = SRC_DATA ();
+
+    srcd.data_in = data.begin ();
+    srcd.data_out = & b_out[oldlen];
+#endif
+
+    srcd.input_frames = inframes;
+    srcd.output_frames = maxframes;
+    srcd.src_ratio = ratio;
+
+    src_process (srcstate, & srcd);
+
+#ifdef DEF_AUDIO_FLOAT64
+    floatbuf_in.resize (0);
+    b_out.resize (oldlen + srcd.output_frames_gen * curchans);
+    float * ain = floatbuf_out.begin ();
+    audio_sample * aout = & b_out[oldlen];
+    const audio_sample * aend = aout + (srcd.output_frames_gen * curchans);
+    while (aout < aend)
+    {
+        *(aout++) = *(ain++);
+    }
+    floatbuf_out.resize (0);
+#else
+    b_out.resize (oldlen + srcd.output_frames_gen * curchans);
+#endif
 }
 
 bool SpeedPitch::flush (bool force)
@@ -147,7 +181,7 @@ void SpeedPitch::start (int & chans, int & rate)
     flush (true);
 }
 
-Index<float> & SpeedPitch::process (Index<float> & data, bool ending)
+Index<audio_sample> & SpeedPitch::process (Index<audio_sample> & data, bool ending)
 {
     const float * cosine_center = & cosine[width / 2];
     float pitch = aud_get_double (CFGSECT, "pitch");

@@ -93,9 +93,9 @@ public:
     void cleanup ();
 
     void start (int & channels, int & rate);
-    Index<float> & process (Index<float> & data);
+    Index<audio_sample> & process (Index<audio_sample> & data);
     bool flush (bool force);
-    Index<float> & finish (Index<float> & data, bool end_of_playlist);
+    Index<audio_sample> & finish (Index<audio_sample> & data, bool end_of_playlist);
     int adjust_delay (int delay);
 };
 
@@ -103,7 +103,7 @@ EXPORT Crossfade aud_plugin_instance;
 
 static char state = STATE_OFF;
 static int current_channels, current_rate;
-static Index<float> buffer, output;
+static Index<audio_sample> buffer, output;
 static int fadein_point;
 
 bool Crossfade::init ()
@@ -119,13 +119,13 @@ void Crossfade::cleanup ()
     output.clear ();
 }
 
-static void do_linear_ramp (float * data, int length, float a, float b)
+static void do_linear_ramp (audio_sample * data, int length, float a, float b)
 {
     for (int i = 0; i < length; i ++)
         (* data ++) *= (a * (length - i) + b * i) / length;
 }
 
-static void do_sigmoid_ramp (float * data, int length, float a, float b)
+static void do_sigmoid_ramp (audio_sample * data, int length, float a, float b)
 {
     float steepness = aud_get_double ("crossfade", "sigmoid_steepness");
     for (int i = 0; i < length; i ++)
@@ -135,7 +135,7 @@ static void do_sigmoid_ramp (float * data, int length, float a, float b)
     }
 }
 
-static void do_ramp (float * data, int length, float a, float b)
+static void do_ramp (audio_sample * data, int length, float a, float b)
 {
     if (aud_get_bool ("crossfade", "use_sigmoid"))
         do_sigmoid_ramp (data, length, a, b);
@@ -143,7 +143,7 @@ static void do_ramp (float * data, int length, float a, float b)
         do_linear_ramp (data, length, a, b);
 }
 
-static void mix (float * data, float * add, int length)
+static void mix (audio_sample * data, audio_sample * add, int length)
 {
     while (length --)
         (* data ++) += (* add ++);
@@ -162,7 +162,7 @@ static void reformat (int channels, int rate)
     for (int c = 0; c < channels; c ++)
         map[c] = c * current_channels / channels;
 
-    Index<float> new_buffer;
+    Index<audio_sample> new_buffer;
     new_buffer.resize (new_frames * channels);
 
     for (int f = 0; f < new_frames; f ++)
@@ -228,7 +228,7 @@ static void run_fadeout ()
     fadein_point = 0;
 }
 
-static void run_fadein (Index<float> & data)
+static void run_fadein (Index<audio_sample> & data)
 {
     int length = buffer.len ();
 
@@ -251,7 +251,7 @@ static void run_fadein (Index<float> & data)
         state = STATE_RUNNING;
 }
 
-Index<float> & Crossfade::process (Index<float> & data)
+Index<audio_sample> & Crossfade::process (Index<audio_sample> & data)
 {
     if (state == STATE_OFF)
         return data;
@@ -294,7 +294,7 @@ bool Crossfade::flush (bool force)
     return true;
 }
 
-Index<float> & Crossfade::finish (Index<float> & data, bool end_of_playlist)
+Index<audio_sample> & Crossfade::finish (Index<audio_sample> & data, bool end_of_playlist)
 {
     if (state == STATE_OFF)
         return data;

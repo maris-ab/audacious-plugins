@@ -69,11 +69,11 @@ static void start_plugin (LoadedPlugin & loaded)
         {
             int channel = ports * i + p;
 
-            Index<float> & in = loaded.in_bufs[channel];
+            Index<audio_sample> & in = loaded.in_bufs[channel];
             in.insert (0, LADSPA_BUFLEN);
             desc.connect_port (handle, plugin.in_ports[p], in.begin ());
 
-            Index<float> & out = loaded.out_bufs[channel];
+            Index<audio_sample> & out = loaded.out_bufs[channel];
             out.insert (0, LADSPA_BUFLEN);
             desc.connect_port (handle, plugin.out_ports[p], out.begin ());
         }
@@ -83,7 +83,7 @@ static void start_plugin (LoadedPlugin & loaded)
     }
 }
 
-static void run_plugin (LoadedPlugin & loaded, float * data, int samples)
+static void run_plugin (LoadedPlugin & loaded, audio_sample * data, int samples)
 {
     if (! loaded.instances.len ())
         return;
@@ -106,9 +106,9 @@ static void run_plugin (LoadedPlugin & loaded, float * data, int samples)
             for (int p = 0; p < ports; p ++)
             {
                 int channel = ports * i + p;
-                float * get = data + channel;
-                float * in = loaded.in_bufs[channel].begin ();
-                float * in_end = in + frames;
+                audio_sample * get = data + channel;
+                audio_sample * in = loaded.in_bufs[channel].begin ();
+                const audio_sample * in_end = in + frames;
 
                 while (in < in_end)
                 {
@@ -122,9 +122,9 @@ static void run_plugin (LoadedPlugin & loaded, float * data, int samples)
             for (int p = 0; p < ports; p ++)
             {
                 int channel = ports * i + p;
-                float * set = data + channel;
-                float * out = loaded.out_bufs[channel].begin ();
-                float * out_end = out + frames;
+                audio_sample * set = data + channel;
+                audio_sample * out = loaded.out_bufs[channel].begin ();
+                const audio_sample * out_end = out + frames;
 
                 while (out < out_end)
                 {
@@ -198,7 +198,7 @@ void LADSPAHost::start (int & channels, int & rate)
     pthread_mutex_unlock (& mutex);
 }
 
-Index<float> & LADSPAHost::process (Index<float> & data)
+Index<audio_sample> & LADSPAHost::process (Index<audio_sample> & data)
 {
     pthread_mutex_lock (& mutex);
 
@@ -223,7 +223,7 @@ bool LADSPAHost::flush (bool force)
     return true;
 }
 
-Index<float> & LADSPAHost::finish (Index<float> & data, bool end_of_playlist)
+Index<audio_sample> & LADSPAHost::finish (Index<audio_sample> & data, bool end_of_playlist)
 {
     pthread_mutex_lock (& mutex);
 

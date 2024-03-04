@@ -48,7 +48,7 @@ public:
     void cleanup ();
 
     void start (int & channels, int & rate);
-    Index<float> & process (Index<float> & data);
+    Index<audio_sample> & process (Index<audio_sample> & data);
     bool flush (bool force);
 };
 
@@ -72,8 +72,8 @@ const PreferencesWidget SilenceRemoval::widgets[] = {
 
 const PluginPreferences SilenceRemoval::prefs = {{widgets}};
 
-static RingBuf<float> buffer;
-static Index<float> output;
+static RingBuf<audio_sample> buffer;
+static Index<audio_sample> output;
 static int current_channels;
 static bool initial_silence;
 
@@ -99,7 +99,7 @@ void SilenceRemoval::start (int & channels, int & rate)
     initial_silence = true;
 }
 
-static float * align_to_frame (float * begin, float * sample, bool align_to_end)
+static audio_sample * align_to_frame (audio_sample * begin, audio_sample * sample, bool align_to_end)
 {
     if (! sample)
         return nullptr;
@@ -111,7 +111,7 @@ static float * align_to_frame (float * begin, float * sample, bool align_to_end)
     return begin + (offset - offset % current_channels);
 }
 
-static void buffer_with_overflow (const float * data, int len)
+static void buffer_with_overflow (const audio_sample * data, int len)
 {
     int max = buffer.size ();
 
@@ -131,15 +131,15 @@ static void buffer_with_overflow (const float * data, int len)
     }
 }
 
-Index<float> & SilenceRemoval::process (Index<float> & data)
+Index<audio_sample> & SilenceRemoval::process (Index<audio_sample> & data)
 {
     const int threshold_db = aud_get_int ("silence-removal", "threshold");
-    const float threshold = powf (10.0f, threshold_db / 20.0f);
+    const audio_sample threshold = pow (10.0, threshold_db / 20.0);
 
-    float * first_sample = nullptr;
-    float * last_sample = nullptr;
+    audio_sample * first_sample = nullptr;
+    audio_sample * last_sample = nullptr;
 
-    for (float & sample : data)
+    for (audio_sample & sample : data)
     {
         if (sample > threshold || sample < -threshold)
         {

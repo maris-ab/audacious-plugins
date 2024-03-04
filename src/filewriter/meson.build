@@ -1,8 +1,9 @@
-filewriter_deps = [audacious_dep, glib_dep]
+filewriter_deps = [audacious_dep, glib_dep, audtag_dep]
 filewriter_srcs = [
   'convert.cc',
   'filewriter.cc',
-  'wav.cc'
+  'wav.cc',
+  'dsf.cc'
 ]
 
 

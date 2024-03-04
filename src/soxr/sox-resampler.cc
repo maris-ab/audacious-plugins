@@ -54,7 +54,7 @@ public:
     void cleanup ();
 
     void start (int & channels, int & rate);
-    Index<float> & process (Index<float> & data);
+    Index<audio_sample> & process (Index<audio_sample> & data);
     bool flush (bool force);
 };
 
@@ -73,12 +73,18 @@ const char * const SoXResampler::defaults[] = {
 
 static soxr_t soxr;
 static soxr_error_t error;
-static soxr_quality_spec_t q;
+static soxr_quality_spec_t qspec;
 static int stored_rate;
 static int target_rate;
 static int stored_channels;
 static double ratio;
-static Index<float> buffer;
+static Index<audio_sample> buffer;
+
+#ifdef DEF_AUDIO_FLOAT64
+    static const soxr_io_spec_t iospec = { SOXR_FLOAT64_I, SOXR_FLOAT64_I, 1.0, 0, 0 };
+#else
+    static const soxr_io_spec_t iospec = { SOXR_FLOAT32_I, SOXR_FLOAT32_I, 1.0, 0, 0 };
+#endif
 
 bool SoXResampler::init ()
 {
@@ -113,9 +119,9 @@ void SoXResampler::start (int & channels, int & rate)
     recipe |= (aud_get_bool ("soxr", "allow_aliasing")) ? SOXR_ALLOW_ALIASING : 0;
 #endif
 
-    q = soxr_quality_spec (recipe, 0);
+    qspec = soxr_quality_spec (recipe, 0);
 
-    soxr = soxr_create (rate, target_rate, channels, & error, nullptr, & q, nullptr);
+    soxr = soxr_create (rate, target_rate, channels, & error, & iospec, & qspec, nullptr);
 
     if (error)
     {
@@ -128,7 +134,7 @@ void SoXResampler::start (int & channels, int & rate)
     rate = target_rate;
 }
 
-Index<float> & SoXResampler::process (Index<float> & data)
+Index<audio_sample> & SoXResampler::process (Index<audio_sample> & data)
 {
     if (! soxr)
          return data;
@@ -157,7 +163,7 @@ bool SoXResampler::flush (bool force)
 
     soxr_delete (soxr);
 
-    soxr = soxr_create (stored_rate, target_rate, stored_channels, & error, nullptr, & q, nullptr);
+    soxr = soxr_create (stored_rate, target_rate, stored_channels, & error, & iospec, & qspec, nullptr);
 
     if (error)
     {

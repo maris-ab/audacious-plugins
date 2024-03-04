@@ -23,9 +23,9 @@
 
 class FrameBasedEffectPlugin : public EffectPlugin
 {
-    Index<float> frame_in;
-    Index<float> frame_out;
-    Index<float> output;
+    Index<audio_sample> frame_in;
+    Index<audio_sample> frame_out;
+    Index<audio_sample> output;
     int current_channels = 0, current_rate = 0, channel_last_read = 0;
     LoudnessFrameProcessor detection;
 
@@ -63,7 +63,7 @@ public:
         flush(false);
     }
 
-    Index<float> & process(Index<float> & data) final
+    Index<audio_sample> & process(Index<audio_sample> & data) final
     {
         detection.update_config();
 
@@ -72,7 +72,7 @@ public:
 
         // It is assumed data always contains a multiple of channels, but we
         // don't care.
-        for (const float sample : data)
+        for (const audio_sample sample : data)
         {
             frame_in[channel_last_read++] = sample;
             if (channel_last_read == current_channels)
@@ -98,7 +98,7 @@ public:
         return true;
     }
 
-    Index<float> & finish(Index<float> & data, bool end_of_playlist) final
+    Index<audio_sample> & finish(Index<audio_sample> & data, bool end_of_playlist) final
     {
         return process(data);
     }

@@ -27,7 +27,7 @@ public:
     bool init ();
 
     void start (int & channels, int & rate);
-    Index<float> & process (Index<float> & data);
+    Index<audio_sample> & process (Index<audio_sample> & data);
 };
 
 EXPORT ExtraStereo aud_plugin_instance;
@@ -62,11 +62,11 @@ void ExtraStereo::start (int & channels, int & rate)
     stereo_channels = channels;
 }
 
-Index<float> & ExtraStereo::process(Index<float> & data)
+Index<audio_sample> & ExtraStereo::process(Index<audio_sample> & data)
 {
-    float value = aud_get_double ("extra_stereo", "intensity");
-    float * f, * end;
-    float center;
+    audio_sample value = aud_get_double ("extra_stereo", "intensity");
+    audio_sample * f, * end;
+    audio_sample center;
 
     if (stereo_channels != 2)
         return data;

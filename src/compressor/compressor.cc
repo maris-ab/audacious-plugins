@@ -31,7 +31,11 @@
 /* Response time adjustments.  Maybe this should be adjustable? */
 #define CHUNK_TIME 0.2f /* seconds */
 #define CHUNKS 5
+#ifdef DEF_AUDIO_FLOAT64
+#define DECAY 0.3
+#else
 #define DECAY 0.3f
+#endif
 
 /* What is a "normal" volume?  Replay Gain stuff claims to use 89 dB, but what
  * does that translate to in our PCM range? */
@@ -73,9 +77,9 @@ public:
     void cleanup ();
 
     void start (int & channels, int & rate);
-    Index<float> & process (Index<float> & data);
+    Index<audio_sample> & process (Index<audio_sample> & data);
     bool flush (bool force);
-    Index<float> & finish (Index<float> & data, bool end_of_playlist);
+    Index<audio_sample> & finish (Index<audio_sample> & data, bool end_of_playlist);
     int adjust_delay (int delay);
 };
 
@@ -86,10 +90,10 @@ EXPORT Compressor aud_plugin_instance;
  * read a multiple of the chunk size or (b) empty the buffer completely.  Writes
  * to the buffer need not be aligned to the chunk size. */
 
-static RingBuf<float> buffer, peaks;
-static Index<float> output;
+static RingBuf<audio_sample> buffer, peaks;
+static Index<audio_sample> output;
 static int chunk_size;
-static float current_peak;
+static audio_sample current_peak;
 static int current_channels, current_rate;
 
 /* I used to find the maximum sample and take that as the peak, but that doesn't
@@ -98,23 +102,27 @@ static int current_channels, current_rate;
  * number proved by experiment (on exactly three files) to best approximate the
  * actual peak. */
 
-static float calc_peak (float * data, int length)
+static audio_sample calc_peak (audio_sample * data, int length)
 {
-    float sum = 0;
+    audio_sample sum = 0;
 
-    float * end = data + length;
+    audio_sample * end = data + length;
     while (data < end)
-        sum += fabsf (* data ++);
+        sum += fabs (* data ++);
 
+#ifdef DEF_AUDIO_FLOAT64
+    return aud::max (0.01, sum / length * 6);
+#else
     return aud::max (0.01f, sum / length * 6);
+#endif
 }
 
-static void do_ramp (float * data, int length, float peak_a, float peak_b)
+static void do_ramp (audio_sample * data, int length, audio_sample peak_a, audio_sample peak_b)
 {
-    float center = aud_get_double ("compressor", "center");
-    float range = aud_get_double ("compressor", "range");
-    float a = powf (peak_a / center, range - 1);
-    float b = powf (peak_b / center, range - 1);
+    audio_sample center = aud_get_double ("compressor", "center");
+    audio_sample range = aud_get_double ("compressor", "range");
+    audio_sample a = pow (peak_a / center, range - 1);
+    audio_sample b = pow (peak_b / center, range - 1);
 
     for (int count = 0; count < length; count ++)
     {
@@ -149,7 +157,7 @@ void Compressor::start (int & channels, int & rate)
     flush (true);
 }
 
-Index<float> & Compressor::process (Index<float> & data)
+Index<audio_sample> & Compressor::process (Index<audio_sample> & data)
 {
     output.resize (0);
 
@@ -171,14 +179,17 @@ Index<float> & Compressor::process (Index<float> & data)
         while (peaks.len () < CHUNKS)
             peaks.push (calc_peak (& buffer[chunk_size * peaks.len ()], chunk_size));
 
-        if (current_peak == 0.0f)
+        if (current_peak == 0.0)
         {
             for (int i = 0; i < CHUNKS; i ++)
                 current_peak = aud::max (current_peak, peaks[i]);
         }
 
-        float new_peak = aud::max (peaks[0], current_peak * (1.0f - DECAY));
-
+#ifdef DEF_AUDIO_FLOAT64
+        audio_sample new_peak = aud::max (peaks[0], current_peak * (1.0 - DECAY));
+#else
+        audio_sample new_peak = aud::max (peaks[0], current_peak * (1.0f - DECAY));
+#endif
         for (int count = 1; count < CHUNKS; count ++)
             new_peak = aud::max (new_peak, current_peak + (peaks[count] - current_peak) / count);
 
@@ -198,11 +209,11 @@ bool Compressor::flush (bool force)
     buffer.discard ();
     peaks.discard ();
 
-    current_peak = 0.0f;
+    current_peak = 0.0;
     return true;
 }
 
-Index<float> & Compressor::finish (Index<float> & data, bool end_of_playlist)
+Index<audio_sample> & Compressor::finish (Index<audio_sample> & data, bool end_of_playlist)
 {
     output.resize (0);
 
@@ -212,13 +223,13 @@ Index<float> & Compressor::finish (Index<float> & data, bool end_of_playlist)
     {
         int writable = buffer.linear ();
 
-        if (current_peak != 0.0f)
+        if (current_peak != 0.0)
             do_ramp (& buffer[0], writable, current_peak, current_peak);
 
         buffer.move_out (output, -1, writable);
     }
 
-    if (current_peak != 0.0f)
+    if (current_peak != 0.0)
         do_ramp (data.begin (), data.len (), current_peak, current_peak);
 
     output.insert (data.begin (), -1, data.len ());

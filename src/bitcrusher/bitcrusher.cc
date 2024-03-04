@@ -57,13 +57,13 @@ public:
     void cleanup ();
 
     void start (int & channels, int & rate);
-    Index<float> & process (Index<float> & data);
+    Index<audio_sample> & process (Index<audio_sample> & data);
     bool flush (bool force);
 
 private:
     float m_accumulator = 0.0;
     int m_channels = 0;
-    Index<float> m_hold;
+    Index<audio_sample> m_hold;
 };
 
 EXPORT Bitcrusher aud_plugin_instance;
@@ -91,8 +91,8 @@ Bitcrusher::start (int & channels, int & rate)
     m_hold.erase (0, m_channels);
 }
 
-Index<float> &
-Bitcrusher::process (Index<float> & data)
+Index<audio_sample> &
+Bitcrusher::process (Index<audio_sample> & data)
 {
     float downsample_ratio = aud_get_double ("bitcrusher", "downsample");
     float bit_depth = aud_get_double ("bitcrusher", "depth");
@@ -100,8 +100,8 @@ Bitcrusher::process (Index<float> & data)
     float scale = pow (2., bit_depth) / 2.;
     float gain = (33. - bit_depth) / 8.;
 
-    float * f = data.begin ();
-    float * end = data.end ();
+    audio_sample * f = data.begin ();
+    const audio_sample * end = data.end ();
 
     while (f < end)
     {
@@ -109,10 +109,10 @@ Bitcrusher::process (Index<float> & data)
 
         for (int channel = 0; channel < m_channels; channel ++)
         {
-            float current = * f;
+            audio_sample current = * f;
 
             if (m_accumulator >= 1.0)
-                m_hold [channel] = floorf ((current * gain) * scale + 0.5) / scale / gain;
+                m_hold [channel] = floor ((current * gain) * scale + 0.5) / scale / gain;
 
             * f ++ = m_hold [channel];
         }

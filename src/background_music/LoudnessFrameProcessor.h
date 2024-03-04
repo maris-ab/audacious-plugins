@@ -42,8 +42,8 @@ class LoudnessFrameProcessor
     float target_level = 0.1;
     float maximum_amplification = 1;
     float perception_slow_balance = 0.3;
-    float minimum_detection = 1e-6;
-    RingBuf<float> read_ahead_buffer;
+    audio_sample minimum_detection = 1e-6;
+    RingBuf<audio_sample> read_ahead_buffer;
     int channels_ = 0;
     int processed_frames = 0;
 
@@ -122,8 +122,8 @@ public:
         long_integration.set_scale(slow_weight);
     }
 
-    bool process_has_output(const Index<float> & frame_in,
-                            Index<float> & frame_out)
+    bool process_has_output(const Index<audio_sample> & frame_in,
+                            Index<audio_sample> & frame_out)
     {
         bool has_output_data = processed_frames >= latency();
         if (has_output_data)
@@ -141,31 +141,31 @@ public:
          * output.
          */
 
-        float square_sum = 0.0;
-        float square_max = 0.0;
-        for (const float sample : frame_in)
+        audio_sample square_sum = 0.0;
+        audio_sample square_max = 0.0;
+        for (const audio_sample sample : frame_in)
         {
-            const float square = sample * sample;
+            const audio_sample square = sample * sample;
             square_max = std::max(square_max, square);
             square_sum += square;
         }
-        square_sum /= static_cast<float>(channels_);
+        square_sum /= static_cast<audio_sample>(channels_);
         square_sum += square_max;
-        const float perceived = FAST_VU_FUDGE_FACTOR *
+        const audio_sample perceived = FAST_VU_FUDGE_FACTOR *
                                 perceivedLoudness.get_mean_squared(square_sum);
         const double weighted =
             std::max(long_integration.integrate(square_sum), perceived);
 
         const double rms = sqrt(weighted);
 
-        const float gain =
+        const audio_sample gain =
             target_level /
             std::max(minimum_detection,
-                     static_cast<float>(release_integration.get_envelope(rms)));
+                     static_cast<audio_sample>(release_integration.get_envelope(rms)));
 
         if (has_output_data)
         {
-            for (float & sample : frame_out)
+            for (audio_sample & sample : frame_out)
             {
                 sample *= gain;
             }

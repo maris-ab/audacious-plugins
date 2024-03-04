@@ -29,6 +29,7 @@
 #include <audacious/audtag.h>
 #include <libaudcore/audstrings.h>
 #include <libaudcore/i18n.h>
+#include <libaudcore/preferences.h>
 #include <libaudcore/multihash.h>
 #include <libaudcore/runtime.h>
 
@@ -44,13 +45,17 @@ class FFaudio : public InputPlugin
 {
 public:
     static const char about[];
-    static const char * const exts[], * const mimes[];
+    static const char * const exts[];
+    static const char * const defaults[];
+    static const char * const mimes[];
+    static const PreferencesWidget widgets[];
+    static const PluginPreferences prefs;
 
     static constexpr PluginInfo info = {
         N_("FFmpeg Plugin"),
         PACKAGE,
-        about
-    };
+        about,
+        &prefs};
 
     constexpr FFaudio () : InputPlugin (info, InputInfo (FlagWritesTag)
         .with_priority (10) /* lowest priority fallback */
@@ -67,6 +72,15 @@ public:
 };
 
 EXPORT FFaudio aud_plugin_instance;
+
+const char * const FFaudio::defaults[] = {"enable_dsd", "FALSE", nullptr};
+
+const PreferencesWidget FFaudio::widgets[] = {
+    WidgetLabel(N_("<b>Output</b>")),
+    WidgetCheck(N_("Enable DSD stream output"),
+                WidgetBool("ffaudio", "enable_dsd"))};
+
+const PluginPreferences FFaudio::prefs = {{widgets}};
 
 typedef struct
 {
@@ -147,6 +161,48 @@ struct ScopedFrame
     ~ScopedFrame () { av_frame_free (& ptr); }
 };
 
+// DSD Processing
+// Check DSD stream
+bool is_codec_dsd(enum AVCodecID codec_id) {
+    switch(codec_id) {
+        case AV_CODEC_ID_DSD_LSBF:
+        case AV_CODEC_ID_DSD_LSBF_PLANAR:
+        case AV_CODEC_ID_DSD_MSBF:
+        case AV_CODEC_ID_DSD_MSBF_PLANAR:
+//        case AV_CODEC_ID_DST:
+            return true;
+        break;
+    default:
+        return false;
+    }
+}
+
+// Sony DSF format
+// Bit reverse DSF LSB Least Significant Bit first
+static const unsigned char reverse_tab[16] = {
+  0x0, 0x8, 0x4, 0xc, 0x2, 0xa, 0x6, 0xe,
+  0x1, 0x9, 0x5, 0xd, 0x3, 0xb, 0x7, 0xf};
+
+// Interlace DSF by channels
+void dsf_interlace_loop(uint8_t * in, uint8_t * out, bool is_lsb_first, int channels, int frames)
+{
+    uint8_t *get = in;
+    for (int ch = 0; ch < channels; ch++)
+    {
+        const uint8_t *end = get + frames;
+        uint8_t *set = out + ch;
+        while (get < end)
+        {
+            uint8_t val = *(get++);
+            if (is_lsb_first) // Bit reverse DSD LSB Least Significant Bit first
+                val = ((reverse_tab[val & 0b1111] << 4) | reverse_tab[val >> 4]);
+            *set = val;
+            set += channels;
+        }
+    }
+}
+
+// FFMpeg processing
 static SimpleHash<String, AVInputFormat *> extension_dict;
 
 static void create_extension_dict ();
@@ -210,6 +266,8 @@ static void ffaudio_log_cb (void * avcl, int av_level, const char * fmt, va_list
 
 bool FFaudio::init ()
 {
+    aud_config_set_defaults("ffaudio", defaults);
+
 #if ! CHECK_LIBAVFORMAT_VERSION(58, 9, 100)
     av_register_all();
 #endif
@@ -545,9 +603,16 @@ bool FFaudio::play (const char * filename, VFSFile & file)
     int channels = context->channels;
 #endif
 
+    int sample_rate = context->sample_rate;
+    if (is_codec_dsd(context->codec_id) && aud_get_bool("ffaudio", "enable_dsd"))
+    {
+        out_fmt = FMT_DSD_MSB8;
+        sample_rate /= 4; // Convert to ALSA sample rate
+    }
+
     /* Open audio output */
     set_stream_bitrate(ic->bit_rate);
-    open_audio(out_fmt, context->sample_rate, channels);
+    open_audio(out_fmt, sample_rate, channels);
 
     int errcount = 0;
     bool eof = false;
@@ -592,6 +657,26 @@ bool FFaudio::play (const char * filename, VFSFile & file)
             if (pkt->stream_index != cinfo.stream_idx)
                 continue;
         }
+
+        // DSD Processing
+        if (is_codec_dsd(context->codec_id) && aud_get_bool("ffaudio", "enable_dsd"))
+        {
+            // Process Sony DSF format
+            if ( context->codec_id == AV_CODEC_ID_DSD_LSBF
+                || context->codec_id == AV_CODEC_ID_DSD_LSBF_PLANAR)
+            {
+                buf.resize(pkt->size);
+                // Bit reverse DSD LSB Least Significant Bit first
+                dsf_interlace_loop(pkt->data, (uint8_t *)buf.begin(), context->codec_id == AV_CODEC_ID_DSD_LSBF_PLANAR, channels, (pkt->size)/channels);
+                write_audio (buf.begin(), pkt->size);
+                continue;
+            }
+            else
+            {   // Process Philips DSDIFF format
+                write_audio (pkt->data, pkt->size);
+                continue;
+            }
+        }   // End of DSD
 
         /* Decode and play packet/frame */
 #ifdef SEND_PACKET
@@ -685,6 +770,9 @@ const char * const FFaudio::exts[] = {
 
     /* WAV (there are some WAV formats sndfile can't handle) */
     "wav",
+
+    // Wavpack compressed DSD
+    "wv",
 
     /* Handle OGG streams (FLAC/Vorbis etc.) */
     "ogg", "oga",

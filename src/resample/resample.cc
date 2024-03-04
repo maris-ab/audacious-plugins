@@ -55,13 +55,13 @@ public:
     void start (int & channels, int & rate);
     bool flush (bool force);
 
-    Index<float> & process (Index<float> & data)
+    Index<audio_sample> & process (Index<audio_sample> & data)
         { return resample (data, false); }
-    Index<float> & finish (Index<float> & data, bool end_of_playlist)
+    Index<audio_sample> & finish (Index<audio_sample> & data, bool end_of_playlist)
         { return resample (data, true); }
 
 private:
-    Index<float> & resample (Index<float> & data, bool finish);
+    Index<audio_sample> & resample (Index<audio_sample> & data, bool finish);
 };
 
 EXPORT Resampler aud_plugin_instance;
@@ -85,7 +85,7 @@ const char * const Resampler::defaults[] = {
 static SRC_STATE * state;
 static int stored_channels;
 static double ratio;
-static Index<float> buffer;
+static Index<audio_sample> outbuffer;
 
 bool Resampler::init ()
 {
@@ -101,7 +101,7 @@ void Resampler::cleanup ()
         state = nullptr;
     }
 
-    buffer.clear ();
+    outbuffer.clear ();
 }
 
 void Resampler::start (int & channels, int & rate)
@@ -139,35 +139,68 @@ void Resampler::start (int & channels, int & rate)
     rate = new_rate;
 }
 
-Index<float> & Resampler::resample (Index<float> & data, bool finish)
+Index<audio_sample> & Resampler::resample (Index<audio_sample> & data, bool finish)
 {
     if (! state || ! data.len ())
         return data;
 
-    buffer.resize ((int) (data.len () * ratio) + 256);
+#ifdef DEF_AUDIO_FLOAT64
+    static Index<float> floatbuf_in;
+    floatbuf_in.resize (data.len ());
+    float * fout = floatbuf_in.begin ();
+    audio_sample * fin = data.begin ();
+    const audio_sample * fend = data.end ();
+    while (fin < fend)
+    {
+        *(fout++) = *(fin++);
+    }
+    static Index<float> floatbuf_out;
+    floatbuf_out.resize ((int) (data.len () * ratio) + 256);
 
-    SRC_DATA d = SRC_DATA ();
+    SRC_DATA srcd = SRC_DATA ();
+    srcd.data_in = floatbuf_in.begin ();
+    srcd.data_out = floatbuf_out.begin ();
+    srcd.output_frames = floatbuf_out.len () / stored_channels;
+#else
+    outbuffer.resize ((int) (data.len () * ratio) + 256);
 
-    d.data_in = data.begin ();
-    d.input_frames = data.len () / stored_channels;
-    d.data_out = buffer.begin ();
-    d.output_frames = buffer.len () / stored_channels;
-    d.src_ratio = ratio;
-    d.end_of_input = finish;
+    SRC_DATA srcd = SRC_DATA ();
+
+    srcd.data_in = data.begin ();
+    srcd.data_out = outbuffer.begin ();
+    srcd.output_frames = outbuffer.len () / stored_channels;
+#endif
+
+    srcd.input_frames = data.len () / stored_channels;
+    srcd.src_ratio = ratio;
+    srcd.end_of_input = finish;
 
     int error;
-    if ((error = src_process (state, & d)))
+    if ((error = src_process (state, & srcd)))
     {
         RESAMPLE_ERROR (error);
         return data;
     }
 
-    buffer.resize (stored_channels * d.output_frames_gen);
+#ifdef DEF_AUDIO_FLOAT64
+    floatbuf_in.resize (0);
+    outbuffer.resize (stored_channels * srcd.output_frames_gen);
+    float * ain = floatbuf_out.begin ();
+    audio_sample * aout = outbuffer.begin ();
+    const audio_sample * aend = aout + (stored_channels * srcd.output_frames_gen);
+    while (aout < aend)
+    {
+        *(aout++) = *(ain++);
+    }
+    floatbuf_out.resize (0);
+#else
+    outbuffer.resize (stored_channels * srcd.output_frames_gen);
+#endif
 
     if (finish)
         flush (true);
 
-    return buffer;
+    return outbuffer;
 }
 
 bool Resampler::flush (bool force)
@@ -181,6 +214,7 @@ bool Resampler::flush (bool force)
 
 const char Resampler::about[] =
  N_("Sample Rate Converter Plugin for Audacious\n"
+    "Using Float32 bit\n"
     "Copyright 2010-2012 John Lindgren");
 
 static const ComboItem method_list[] = {

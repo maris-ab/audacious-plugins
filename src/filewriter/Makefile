@@ -1,10 +1,11 @@
 PLUGIN = filewriter${PLUGIN_SUFFIX}
 
-SRCS = filewriter.cc	\
-       wav.cc		\
-       mp3.cc		\
-       vorbis.cc		\
-       flac.cc           \
+SRCS = filewriter.cc    \
+       wav.cc       \
+       mp3.cc       \
+       vorbis.cc    \
+       flac.cc       \
+       dsf.cc       \
        convert.cc
 
 include ../../buildsys.mk

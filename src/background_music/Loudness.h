@@ -23,6 +23,7 @@
 #include <cmath>
 #include <cstdint>
 #include <libaudcore/ringbuf.h>
+#include <libaudcore/audio.h>
 
 /**
  * Tools to detect perceived loudness.
@@ -93,11 +94,11 @@ class PerceptiveRMS
 
     public:
 
-        float add_and_take_and_get(uint64_t add, uint64_t take)
+        audio_sample add_and_take_and_get(uint64_t add, uint64_t take)
         {
             window_sum_ += add;
             window_sum_ -= take;
-            const auto sum = static_cast<float>(window_sum_);
+            const auto sum = static_cast<audio_sample>(window_sum_);
             output_ = scale_ * sum;
             return output_;
         }
@@ -140,14 +141,14 @@ class PerceptiveRMS
     }
 
     [[nodiscard]] uint64_t static squared_value_to_internal_value(
-        const float squared_value)
+        const audio_sample squared_value)
     {
         return static_cast<uint64_t>(
-            fabsf(std::round(squared_value * INPUT_SCALE)));
+            fabs(std::round(squared_value * INPUT_SCALE)));
     }
 
 public:
-    void set_rate_and_value(int sample_rate, float squared_initial_value)
+    void set_rate_and_value(int sample_rate, audio_sample squared_initial_value)
     {
         if (sample_rate_ == sample_rate)
         {
@@ -167,15 +168,15 @@ public:
 
     [[nodiscard]] int latency() const { return latency_; }
 
-    float get_mean_squared(const float squared_input)
+    audio_sample get_mean_squared(const audio_sample squared_input)
     {
         const uint64_t internal_value =
             squared_value_to_internal_value(squared_input);
         const uint64_t oldest = buffer_.pop();
         buffer_.push(internal_value);
 
-        float max = rms_[0].add_and_take_and_get(internal_value, oldest);
-        max = std::max(max, static_cast<float>(internal_value) * peak_weight_);
+        audio_sample max = rms_[0].add_and_take_and_get(internal_value, oldest);
+        max = std::max(max, static_cast<audio_sample>(internal_value) * peak_weight_);
 
         for (int step = 1; step <= STEPS; step++)
         {

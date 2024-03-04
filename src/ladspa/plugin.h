@@ -55,11 +55,11 @@ struct PluginData
 struct LoadedPlugin
 {
     PluginData & plugin;
-    Index<float> values;
+    Index<audio_sample> values;
     bool selected = false;
     bool active = false;
     Index<LADSPA_Handle> instances;
-    Index<Index<float>> in_bufs, out_bufs;
+    Index<Index<audio_sample>> in_bufs, out_bufs;
     GtkWidget * settings_win = nullptr;
 
     LoadedPlugin (PluginData & plugin) :
@@ -87,9 +87,9 @@ public:
     void cleanup ();
 
     void start (int & channels, int & rate);
-    Index<float> & process (Index<float> & data);
+    Index<audio_sample> & process (Index<audio_sample> & data);
     bool flush (bool force);
-    Index<float> & finish (Index<float> & data, bool end_of_playlist);
+    Index<audio_sample> & finish (Index<audio_sample> & data, bool end_of_playlist);
 };
 
 /* plugin.c */

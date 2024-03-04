@@ -52,14 +52,14 @@ public:
     void cleanup ();
 
     void start (int & channels, int & rate);
-    Index<float> & process (Index<float> & data);
+    Index<audio_sample> & process (Index<audio_sample> & data);
     bool flush (bool force);
 };
 
 EXPORT Crystalizer aud_plugin_instance;
 
 static int cryst_channels;
-static Index<float> cryst_prev;
+static Index<audio_sample> cryst_prev;
 
 bool Crystalizer::init ()
 {
@@ -79,17 +79,17 @@ void Crystalizer::start (int & channels, int & rate)
     cryst_prev.erase (0, cryst_channels);
 }
 
-Index<float> & Crystalizer::process (Index<float> & data)
+Index<audio_sample> & Crystalizer::process (Index<audio_sample> & data)
 {
     float value = aud_get_double ("crystalizer", "intensity");
-    float * f = data.begin ();
-    float * end = data.end ();
+    audio_sample * f = data.begin ();
+    const audio_sample * end = data.end ();
 
     while (f < end)
     {
         for (int channel = 0; channel < cryst_channels; channel ++)
         {
-            float current = * f;
+            audio_sample current = * f;
             * f ++ = current + (current - cryst_prev[channel]) * value;
             cryst_prev[channel] = current;
         }

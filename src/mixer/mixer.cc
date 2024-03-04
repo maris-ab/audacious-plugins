@@ -53,26 +53,26 @@ public:
     void cleanup ();
 
     void start (int & channels, int & rate);
-    Index<float> & process (Index<float> & data);
+    Index<audio_sample> & process (Index<audio_sample> & data);
 };
 
 EXPORT ChannelMixer aud_plugin_instance;
 
-typedef Index<float> & (* Converter) (Index<float> & data);
+typedef Index<audio_sample> & (* Converter) (Index<audio_sample> & data);
 
-static Index<float> mixer_buf;
+static Index<audio_sample> mixer_buf;
 
-static Index<float> & mono_to_stereo (Index<float> & data)
+static Index<audio_sample> & mono_to_stereo (Index<audio_sample> & data)
 {
     int frames = data.len ();
     mixer_buf.resize (2 * frames);
 
-    float * get = data.begin ();
-    float * set = mixer_buf.begin ();
+    audio_sample * get = data.begin ();
+    audio_sample * set = mixer_buf.begin ();
 
     while (frames --)
     {
-        float val = * get ++;
+        audio_sample val = * get ++;
         * set ++ = val;
         * set ++ = val;
     }
@@ -80,17 +80,17 @@ static Index<float> & mono_to_stereo (Index<float> & data)
     return mixer_buf;
 }
 
-static Index<float> & stereo_to_mono (Index<float> & data)
+static Index<audio_sample> & stereo_to_mono (Index<audio_sample> & data)
 {
     int frames = data.len () / 2;
     mixer_buf.resize (frames);
 
-    float * get = data.begin ();
-    float * set = mixer_buf.begin ();
+    audio_sample * get = data.begin ();
+    audio_sample * set = mixer_buf.begin ();
 
     while (frames --)
     {
-        float val = * get ++;
+        audio_sample val = * get ++;
         val += * get ++;
         * set ++ = val / 2;
     }
@@ -98,20 +98,20 @@ static Index<float> & stereo_to_mono (Index<float> & data)
     return mixer_buf;
 }
 
-static Index<float> & quadro_to_stereo (Index<float> & data)
+static Index<audio_sample> & quadro_to_stereo (Index<audio_sample> & data)
 {
     int frames = data.len () / 4;
     mixer_buf.resize (2 * frames);
 
-    float * get = data.begin ();
-    float * set = mixer_buf.begin ();
+    audio_sample * get = data.begin ();
+    audio_sample * set = mixer_buf.begin ();
 
     while (frames --)
     {
-        float front_left  = * get ++;
-        float front_right = * get ++;
-        float back_left   = * get ++;
-        float back_right  = * get ++;
+        audio_sample front_left  = * get ++;
+        audio_sample front_right = * get ++;
+        audio_sample back_left   = * get ++;
+        audio_sample back_right  = * get ++;
         * set ++ = front_left + (back_left * 0.7);
         * set ++ = front_right + (back_right * 0.7);
     }
@@ -119,18 +119,18 @@ static Index<float> & quadro_to_stereo (Index<float> & data)
     return mixer_buf;
 }
 
-static Index<float> & stereo_to_quadro (Index<float> & data)
+static Index<audio_sample> & stereo_to_quadro (Index<audio_sample> & data)
 {
     int frames = data.len () / 2;
     mixer_buf.resize (4 * frames);
 
-    float * get = data.begin ();
-    float * set = mixer_buf.begin();
+    audio_sample * get = data.begin ();
+    audio_sample * set = mixer_buf.begin();
 
     while (frames --)
     {
-        float left  = * get ++;
-        float right = * get ++;
+        audio_sample left  = * get ++;
+        audio_sample right = * get ++;
         * set ++ = left;   // front left
         * set ++ = right;  // front right
         * set ++ = left;   // rear left
@@ -140,22 +140,22 @@ static Index<float> & stereo_to_quadro (Index<float> & data)
     return mixer_buf;
 }
 
-static Index<float> & surround_5p1_to_stereo (Index<float> & data)
+static Index<audio_sample> & surround_5p1_to_stereo (Index<audio_sample> & data)
 {
     int frames = data.len () / 6;
     mixer_buf.resize (2 * frames);
 
-    float * get = data.begin ();
-    float * set = mixer_buf.begin ();
+    audio_sample * get = data.begin ();
+    audio_sample * set = mixer_buf.begin ();
 
     while (frames --)
     {
-        float front_left  = * get ++;
-        float front_right = * get ++;
-        float center = * get ++;
-        float lfe    = * get ++;
-        float rear_left   = * get ++;
-        float rear_right  = * get ++;
+        audio_sample front_left  = * get ++;
+        audio_sample front_right = * get ++;
+        audio_sample center = * get ++;
+        audio_sample lfe    = * get ++;
+        audio_sample rear_left   = * get ++;
+        audio_sample rear_right  = * get ++;
         * set ++ = front_left + (center * 0.5) + (lfe * 0.5) + (rear_left * 0.5);
         * set ++ = front_right + (center * 0.5) + (lfe * 0.5) + (rear_right * 0.5);
     }
@@ -164,21 +164,21 @@ static Index<float> & surround_5p1_to_stereo (Index<float> & data)
 }
 
 /* 5 channels case. Quad + center channel */
-static Index<float> & quadro_5_to_stereo (Index<float> & data)
+static Index<audio_sample> & quadro_5_to_stereo (Index<audio_sample> & data)
 {
     int frames = data.len () / 5;
     mixer_buf.resize (2 * frames);
 
-    float * get = data.begin ();
-    float * set = mixer_buf.begin ();
+    audio_sample * get = data.begin ();
+    audio_sample * set = mixer_buf.begin ();
 
     while (frames --)
     {
-        float front_left  = * get ++;
-        float front_right = * get ++;
-        float center = * get ++;
-        float rear_left   = * get ++;
-        float rear_right  = * get ++;
+        audio_sample front_left  = * get ++;
+        audio_sample front_right = * get ++;
+        audio_sample center = * get ++;
+        audio_sample rear_left   = * get ++;
+        audio_sample rear_right  = * get ++;
         * set ++ = front_left + (center * 0.5) + rear_left;
         * set ++ = front_right + (center * 0.5) + rear_right;
     }
@@ -224,7 +224,7 @@ void ChannelMixer::start (int & channels, int & rate)
     channels = output_channels;
 }
 
-Index<float> & ChannelMixer::process (Index<float> & data)
+Index<audio_sample> & ChannelMixer::process (Index<audio_sample> & data)
 {
     if (input_channels == output_channels)
         return data;
