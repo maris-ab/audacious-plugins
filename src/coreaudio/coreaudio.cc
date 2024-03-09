@@ -129,6 +129,7 @@ static struct AudioUnitFormatDescriptionMap AUFormatMap[] = {
     {FMT_U32_LE, 32, sizeof (int32_t), 0},
     {FMT_U32_BE, 32, sizeof (int32_t), kAudioFormatFlagIsBigEndian},
     {FMT_FLOAT,  32, sizeof (float),   kAudioFormatFlagIsFloat},
+    {FMT_FLOAT64, 64, sizeof (double), kAudioFormatFlagIsFloat},
 };
 
 static RingBuf <unsigned char> buffer;

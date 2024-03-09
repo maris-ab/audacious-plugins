@@ -188,9 +188,27 @@ static void callback (void * user, unsigned char * buf, int len)
 
 bool SDLOutput::open_audio (int format, int rate, int chan, String & error)
 {
-    if (format != FMT_S16_NE)
+    SDL_AudioFormat sdl_fmt;
+
+    switch (format)
     {
-        error = String ("SDL error: Only signed 16-bit, native endian audio is supported.");
+    case FMT_S16_NE:
+        sdl_fmt = AUDIO_S16;
+        break;
+#if SDL_MAJOR_VERSION >= 2
+    case FMT_S32_NE:
+        sdl_fmt = AUDIO_S32;
+        break;
+    case FMT_FLOAT:
+        sdl_fmt = AUDIO_F32;
+        break;
+#endif
+    default:
+        error = String ("SDL error: Only S16"
+#if SDL_MAJOR_VERSION >= 2
+        ", S32 and FLOAT"
+#endif
+        " native endian audio is supported.");
         return false;
     }
 
@@ -208,7 +226,7 @@ bool SDLOutput::open_audio (int format, int rate, int chan, String & error)
     SDL_AudioSpec spec = {0};
 
     spec.freq = rate;
-    spec.format = AUDIO_S16;
+    spec.format = sdl_fmt;
     spec.channels = chan;
     spec.samples = 4096;
     spec.callback = callback;
