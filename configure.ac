@@ -5,7 +5,7 @@ dnl ***
 dnl Initialize
 dnl ==========
 AC_PREREQ([2.59])
-AC_INIT([audacious-plugins], [4.4-devel])
+AC_INIT([audacious-plugins], [4.4-beta1])
 AC_COPYRIGHT([Copyright (C) 2001-2024 Audacious developers and others])
 
 AC_DEFINE_UNQUOTED([PACKAGE], "$PACKAGE_NAME", [Name of package])
@@ -765,7 +765,7 @@ echo "Configuration:"
 echo
 echo "  Install path:                           $plugindir"
 echo
-echo "  GTK+ support:                           $USE_GTK"
+echo "  GTK support:                            $USE_GTK"
 echo "  Qt support:                             $USE_QT"
 echo
 echo "  Audio Formats"
@@ -810,7 +810,7 @@ echo "  Crystalizer:                            yes"
 echo "  Dynamic Range Compressor:               yes"
 echo "  Echo/Surround:                          yes"
 echo "  Extra Stereo:                           yes"
-echo "  LADSPA Host (requires GTK+):            $USE_GTK"
+echo "  LADSPA Host (requires GTK):             $USE_GTK"
 echo "  Sample Rate Converter:                  $have_resample"
 echo "  Silence Removal:                        yes"
 echo "  SoX Resampler:                          $have_soxr"
@@ -860,8 +860,8 @@ echo "  Song Change:                            $have_songchange"
 echo
 
 if test "x$USE_GTK" = "xyes" ; then
-    echo "  GTK+ Support"
-    echo "  ------------"
+    echo "  GTK Support"
+    echo "  -----------"
     echo "  GTK Interface:                          yes"
     echo "  Winamp Classic Interface:               yes"
     echo "  Album Art:                              yes"
