@@ -1,5 +1,5 @@
 project('audacious-plugins', 'c', 'cpp',
-        version: '4.4-beta1',
+        version: '4.4',
         meson_version: '>= 0.51',
         default_options: [
           'c_std=gnu99',
@@ -79,7 +79,7 @@ if get_option('gtk')
     gtk_req = '>= 2.24'
     gtk_dep = dependency('gtk+-2.0', version: gtk_req, required: true)
   else
-    gtk_req = '>= 3.22'
+    gtk_req = '>= 3.18'
     gtk_dep = dependency('gtk+-3.0', version: gtk_req, required: true)
   endif
 endif
@@ -340,6 +340,6 @@ if meson.version().version_compare('>= 0.53')
     summary({
       'CoreAudio Output': get_option('coreaudio'),
       'Media Keys': get_option('mac-media-keys'),
-    }, section: 'Mac OS X Support')
+    }, section: 'macOS Support')
   endif
 endif

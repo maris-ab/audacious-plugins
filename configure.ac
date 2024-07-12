@@ -5,7 +5,7 @@ dnl ***
 dnl Initialize
 dnl ==========
 AC_PREREQ([2.59])
-AC_INIT([audacious-plugins], [4.4-beta1])
+AC_INIT([audacious-plugins], [4.4])
 AC_COPYRIGHT([Copyright (C) 2001-2024 Audacious developers and others])
 
 AC_DEFINE_UNQUOTED([PACKAGE], "$PACKAGE_NAME", [Name of package])
@@ -244,7 +244,7 @@ ENABLE_PLUGIN_WITH_DEP(opus,
     yes,
     INPUT,
     OPUS,
-    opus >= 1.0.1 opusfile >= 0.4)
+    opusfile >= 0.4)
 
 ENABLE_PLUGIN_WITH_DEP(amidiplug,
     MIDI synthesizer,
@@ -404,12 +404,19 @@ ENABLE_PLUGIN_WITH_DEP(pulse,
     PULSE,
     libpulse >= 0.9.5)
 
-ENABLE_PLUGIN_WITH_DEP(sndio,
+test_sndio () {
+    PKG_CHECK_MODULES(SNDIO, sndio >= 1.9, [
+        AC_DEFINE(HAVE_SNDIO_1_9, 1, [Define if sndio version is >= 1.9])
+        have_sndio=yes
+    ], [
+        PKG_CHECK_MODULES(SNDIO, sndio, have_sndio=yes, have_sndio=no)
+    ])
+}
+
+ENABLE_PLUGIN_WITH_TEST(sndio,
     Sndio output,
     auto,
-    OUTPUT,
-    SNDIO,
-    sndio)
+    OUTPUT)
 
 test_cue () {
     PKG_CHECK_MODULES(CUE, libcue >= 2.0, [
@@ -512,10 +519,10 @@ ENABLE_PLUGIN_WITH_TEST(glspectrum,
     auto,
     VISUALIZATION)
 
-if test "x$USE_GTK3" = "xyes"; then
-    GDK_X11_DEP=gdk-x11-3.0
-else
+if test "x$USE_GTK2" = "xyes"; then
     GDK_X11_DEP=gdk-x11-2.0
+else
+    GDK_X11_DEP=gdk-x11-3.0
 fi
 
 ENABLE_PLUGIN_WITH_DEP(hotkey,
@@ -897,8 +904,8 @@ if test "x$USE_QT" = "xyes" ; then
 fi
 
 if test "x$HAVE_DARWIN" = "xyes" ; then
-    echo "  Mac OS X Support"
-    echo "  ----------------"
+    echo "  macOS Support"
+    echo "  -------------"
     echo "  CoreAudio output:                       $have_coreaudio"
     echo "  Media Keys:                             $enable_mac_media_keys"
     echo
