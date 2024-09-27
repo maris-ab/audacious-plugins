@@ -106,7 +106,7 @@ static audio_sample calc_peak (audio_sample * data, int length)
 {
     audio_sample sum = 0;
 
-    audio_sample * end = data + length;
+    const audio_sample * end = data + length;
     while (data < end)
         sum += fabs (* data ++);
 

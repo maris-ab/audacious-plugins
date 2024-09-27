@@ -49,7 +49,7 @@ Index<audio_sample> & VoiceRemoval::process (Index<audio_sample> & data)
     if (voice_channels != 2)
         return data;
 
-    audio_sample * end = data.end ();
+    const audio_sample * end = data.end ();
 
     for (audio_sample * f = data.begin (); f < end; f += 2)
     {

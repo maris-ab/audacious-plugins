@@ -558,6 +558,7 @@ static void * make_config_widget ()
 
 const char LADSPAHost::about[] =
  N_("LADSPA Host for Audacious\n"
+    "Using Float32 bit\n"
     "Copyright 2011 John Lindgren");
 
 const PreferencesWidget LADSPAHost::widgets[] = {

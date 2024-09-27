@@ -55,11 +55,11 @@ struct PluginData
 struct LoadedPlugin
 {
     PluginData & plugin;
-    Index<audio_sample> values;
+    Index<LADSPA_Data> values;
     bool selected = false;
     bool active = false;
     Index<LADSPA_Handle> instances;
-    Index<Index<audio_sample>> in_bufs, out_bufs;
+    Index<Index<LADSPA_Data>> in_bufs, out_bufs;
     GtkWidget * settings_win = nullptr;
 
     LoadedPlugin (PluginData & plugin) :

@@ -69,11 +69,11 @@ static void start_plugin (LoadedPlugin & loaded)
         {
             int channel = ports * i + p;
 
-            Index<audio_sample> & in = loaded.in_bufs[channel];
+            Index<LADSPA_Data> & in = loaded.in_bufs[channel];
             in.insert (0, LADSPA_BUFLEN);
             desc.connect_port (handle, plugin.in_ports[p], in.begin ());
 
-            Index<audio_sample> & out = loaded.out_bufs[channel];
+            Index<LADSPA_Data> & out = loaded.out_bufs[channel];
             out.insert (0, LADSPA_BUFLEN);
             desc.connect_port (handle, plugin.out_ports[p], out.begin ());
         }
@@ -107,8 +107,8 @@ static void run_plugin (LoadedPlugin & loaded, audio_sample * data, int samples)
             {
                 int channel = ports * i + p;
                 audio_sample * get = data + channel;
-                audio_sample * in = loaded.in_bufs[channel].begin ();
-                const audio_sample * in_end = in + frames;
+                LADSPA_Data * in = loaded.in_bufs[channel].begin ();
+                const LADSPA_Data * in_end = in + frames;
 
                 while (in < in_end)
                 {
@@ -123,8 +123,8 @@ static void run_plugin (LoadedPlugin & loaded, audio_sample * data, int samples)
             {
                 int channel = ports * i + p;
                 audio_sample * set = data + channel;
-                audio_sample * out = loaded.out_bufs[channel].begin ();
-                const audio_sample * out_end = out + frames;
+                LADSPA_Data * out = loaded.out_bufs[channel].begin ();
+                const LADSPA_Data * out_end = out + frames;
 
                 while (out < out_end)
                 {

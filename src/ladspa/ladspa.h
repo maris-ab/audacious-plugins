@@ -26,8 +26,6 @@
 #define LADSPA_VERSION_MAJOR 1
 #define LADSPA_VERSION_MINOR 1
 
-#include <libaudcore/audio.h>
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -83,7 +81,7 @@ extern "C" {
    For audio it is generally assumed that 1.0f is the `0dB' reference
    amplitude and is a `normal' signal level. */
 
-typedef audio_sample LADSPA_Data;
+typedef float LADSPA_Data;
 
 /*****************************************************************************/
 
