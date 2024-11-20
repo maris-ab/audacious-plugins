@@ -29,6 +29,7 @@
 #include <libaudcore/i18n.h>
 #include <libaudcore/plugin.h>
 #include <libaudcore/runtime.h>
+#include <libaudcore/ringbuf.h>
 
 #if !PW_CHECK_VERSION(0, 3, 33)
   #define PW_KEY_NODE_RATE "node.rate"
@@ -104,9 +105,9 @@ private:
     int m_aud_format = 0;
     int m_core_init_seq = 0;
 
-    unsigned char * m_buffer = nullptr;
-    unsigned int m_buffer_at = 0;
-    unsigned int m_buffer_size = 0;
+    timespec m_OnProcessTimeSpec {};
+    RingBuf<char> m_pw_buffer;
+    unsigned int m_pwb_size = 0;
     unsigned int m_frames = 0;
     unsigned int m_stride = 0;
     unsigned int m_rate = 0;
@@ -160,36 +161,56 @@ void PipeWireOutput::pause(bool pause)
 {
     pw_thread_loop_lock(m_loop);
     pw_stream_set_active(m_stream, !pause);
+    clock_gettime (CLOCK_REALTIME, & m_OnProcessTimeSpec);
     pw_thread_loop_unlock(m_loop);
 }
 
 int PipeWireOutput::get_delay()
 {
-    return (m_buffer_at / m_stride + m_frames) * 1000 / m_rate;
+    int BuffTime = (((m_pw_buffer.len() + m_pwb_size) / m_stride) * 1000) / m_rate;
+
+    // Get time difference from last buffer fill
+    timespec CurrTime {};
+    clock_gettime (CLOCK_REALTIME, & CurrTime);
+
+    int TimeDiff =
+       (((CurrTime.tv_sec - m_OnProcessTimeSpec.tv_sec) * 1000000000)
+       + (CurrTime.tv_nsec - m_OnProcessTimeSpec.tv_nsec))/1000000;
+    if (TimeDiff < 0) TimeDiff = 0;
+    if (TimeDiff > BuffTime) TimeDiff = BuffTime;
+
+    return BuffTime - TimeDiff;
 }
 
 void PipeWireOutput::drain()
 {
     pw_thread_loop_lock(m_loop);
-    if (m_buffer_at > 0)
-        pw_thread_loop_timed_wait(m_loop, 2);
-
+    int buflen;
+    while ((buflen = m_pw_buffer.len()) > 0)
+    {
+        pw_thread_loop_timed_wait(m_loop, 1);
+        if(buflen <= m_pw_buffer.len())
+        {
+            AUDERR("Buffer drain lock\n");
+            break;
+        }
+    }
     pw_stream_flush(m_stream, true);
-    pw_thread_loop_timed_wait(m_loop, 2);
+    pw_thread_loop_timed_wait(m_loop, 1);
     pw_thread_loop_unlock(m_loop);
 }
 
 void PipeWireOutput::flush()
 {
     pw_thread_loop_lock(m_loop);
-    m_buffer_at = 0;
+    m_pw_buffer.discard();
     pw_thread_loop_unlock(m_loop);
     pw_stream_flush(m_stream, false);
 }
 
 void PipeWireOutput::period_wait()
 {
-    if (m_buffer_at != m_buffer_size)
+   if (m_pw_buffer.space())
         return;
 
     pw_thread_loop_lock(m_loop);
@@ -201,12 +222,11 @@ int PipeWireOutput::write_audio(const void * data, int length)
 {
     pw_thread_loop_lock(m_loop);
 
-    auto size = aud::min<size_t>(m_buffer_size - m_buffer_at, length);
-    memcpy(m_buffer + m_buffer_at, data, size);
-    m_buffer_at += size;
+    length = aud::min (length, m_pw_buffer.space());
+    m_pw_buffer.copy_in((const char *) data, length);
 
     pw_thread_loop_unlock(m_loop);
-    return size;
+    return length;
 }
 
 void PipeWireOutput::close_audio()
@@ -249,11 +269,8 @@ void PipeWireOutput::close_audio()
         m_loop = nullptr;
     }
 
-    if (m_buffer)
-    {
-        delete[] m_buffer;
-        m_buffer = nullptr;
-    }
+    m_pw_buffer.destroy();
+
 }
 
 bool PipeWireOutput::open_audio(int format, int rate, int channels, String & error)
@@ -267,6 +284,7 @@ bool PipeWireOutput::open_audio(int format, int rate, int channels, String & err
         close_audio();
         return false;
     }
+    clock_gettime (CLOCK_REALTIME, & m_OnProcessTimeSpec);
 
     return true;
 }
@@ -345,9 +363,8 @@ bool PipeWireOutput::init_core()
     }
 
     m_stride = FMT_SIZEOF(m_aud_format) * m_channels;
-    m_frames = aud::clamp<int>(64, ceilf(2048 * m_rate / 48000.0f), 8192);
-    m_buffer_size = m_frames * m_stride;
-    m_buffer = new unsigned char[m_buffer_size];
+    m_frames = aud_get_int("output_buffer_size") * m_rate / 1000;
+    m_pw_buffer.alloc(m_frames * m_stride);
 
     return true;
 }
@@ -509,7 +526,9 @@ void PipeWireOutput::on_process(void * data)
     struct spa_buffer * buf;
     void * dst;
 
-    if (!o->m_buffer_at)
+    clock_gettime (CLOCK_REALTIME, & o->m_OnProcessTimeSpec);
+
+    if (!o->m_pw_buffer.len())
     {
         pw_thread_loop_signal(o->m_loop, false);
         return;
@@ -529,13 +548,12 @@ void PipeWireOutput::on_process(void * data)
         return;
     }
 
-    auto size = aud::min<uint32_t>(buf->datas[0].maxsize, o->m_buffer_at);
-    memcpy(dst, o->m_buffer, size);
-    o->m_buffer_at -= size;
-    memmove(o->m_buffer, o->m_buffer + size, o->m_buffer_at);
+    unsigned int size = aud::min<uint32_t>(buf->datas[0].maxsize, o->m_pw_buffer.len());
+    o->m_pwb_size = size;
+    o->m_pw_buffer.move_out((char*)dst, size);
 
     b->buffer->datas[0].chunk->offset = 0;
-    b->buffer->datas[0].chunk->size = o->m_buffer_size;
+    b->buffer->datas[0].chunk->size = size;
     b->buffer->datas[0].chunk->stride = o->m_stride;
 
     pw_stream_queue_buffer(o->m_stream, b);
@@ -610,6 +628,17 @@ void PipeWireOutput::set_channel_map(SPAINF * info, int channels)
             break;
         case 1:
             info->position[0] = SPA_AUDIO_CHANNEL_MONO;
+            break;
+        case 7:
+            info->position[6] = SPA_AUDIO_CHANNEL_FLC;
+            info->position[7] = SPA_AUDIO_CHANNEL_FRC;
+            // Fall through
+        case 5:
+            info->position[4] = SPA_AUDIO_CHANNEL_RL;
+            info->position[5] = SPA_AUDIO_CHANNEL_RR;
+            info->position[2] = SPA_AUDIO_CHANNEL_FC;
+            info->position[0] = SPA_AUDIO_CHANNEL_FL;
+            info->position[1] = SPA_AUDIO_CHANNEL_FR;
             break;
     }
 }
