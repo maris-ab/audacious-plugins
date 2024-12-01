@@ -168,6 +168,7 @@ int PipeWireOutput::get_delay()
     int buff_time = ((m_buffer.len() / m_stride) * 1000) / m_rate;
     int pw_buff_time = ((m_pw_buffer_size / m_stride) * 1000) / m_rate;
     int time_diff = 0;
+    int add_delay = 0;
 
     // Get time difference from updated time snapshot of the stream
     pw_time v_time;
@@ -175,8 +176,13 @@ int PipeWireOutput::get_delay()
     {
         time_diff = (pw_stream_get_nsec(m_stream) - v_time.now) / SPA_NSEC_PER_MSEC;
         time_diff = aud::clamp<int>(0, time_diff, pw_buff_time);
+        add_delay = (v_time.buffered + v_time.queued) * 1000 / m_rate;
+        if(v_time.rate.denom > 0)
+        {
+            add_delay += v_time.delay * 1000 * v_time.rate.num / v_time.rate.denom;
+        }
     }
-    return buff_time + pw_buff_time - time_diff;
+    return buff_time + pw_buff_time - time_diff + add_delay;
 }
 
 void PipeWireOutput::drain()
@@ -195,6 +201,7 @@ void PipeWireOutput::drain()
     }
 
     pw_stream_flush(m_stream, true);
+    // For triggering on_drained() loop_timed_wait after flush necessary
     pw_thread_loop_timed_wait(m_loop, 1);
     pw_thread_loop_unlock(m_loop);
 }
