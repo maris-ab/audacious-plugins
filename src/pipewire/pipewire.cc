@@ -21,6 +21,7 @@
  */
 
 #include <cmath>
+#include <ctime>
 
 #include <pipewire/pipewire.h>
 #include <spa/param/audio/format-utils.h>
@@ -31,8 +32,21 @@
 #include <libaudcore/ringbuf.h>
 #include <libaudcore/runtime.h>
 
-#if !PW_CHECK_VERSION(0, 3, 33)
-  #define PW_KEY_NODE_RATE "node.rate"
+#if !PW_CHECK_VERSION(0, 3, 50)
+static inline int pw_stream_get_time_n(struct pw_stream * stream,
+                                       struct pw_time * time, size_t size)
+{
+    return pw_stream_get_time(stream, time);
+}
+#endif
+
+#if !PW_CHECK_VERSION(1, 0, 4)
+static uint64_t pw_stream_get_nsec(struct pw_stream * stream)
+{
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return SPA_TIMESPEC_TO_NSEC(&ts);
+}
 #endif
 
 class PipeWireOutput : public OutputPlugin
@@ -85,8 +99,7 @@ private:
     static void on_drained(void * data);
 
     static enum spa_audio_format to_pipewire_format(int format);
-    template<typename SPAINF>
-    static void set_channel_map(SPAINF * info, int channels);
+    static void set_channel_map(struct spa_audio_info_raw * info, int channels);
 
     struct pw_thread_loop * m_loop = nullptr;
     struct pw_stream * m_stream = nullptr;
@@ -171,17 +184,20 @@ int PipeWireOutput::get_delay()
     int add_delay = 0;
 
     // Get time difference from updated time snapshot of the stream
-    pw_time v_time;
-    if(pw_stream_get_time_n(m_stream, &v_time, sizeof(v_time)) == 0)
+    struct pw_time time;
+    if (pw_stream_get_time_n(m_stream, &time, sizeof time) == 0)
     {
-        time_diff = (pw_stream_get_nsec(m_stream) - v_time.now) / SPA_NSEC_PER_MSEC;
-        time_diff = aud::clamp<int>(0, time_diff, pw_buff_time);
-        add_delay = (v_time.buffered + v_time.queued) * 1000 / m_rate;
-        if(v_time.rate.denom > 0)
-        {
-            add_delay += v_time.delay * 1000 * v_time.rate.num / v_time.rate.denom;
-        }
+        time_diff = (pw_stream_get_nsec(m_stream) - time.now) / SPA_NSEC_PER_MSEC;
+        time_diff = aud::clamp(time_diff, 0, pw_buff_time);
+        add_delay = time.queued * 1000 / m_rate;
+
+#if PW_CHECK_VERSION(0, 3, 50)
+        add_delay += time.buffered * 1000 / m_rate;
+#endif
+        if (time.rate.denom > 0)
+            add_delay += time.delay * 1000 * time.rate.num / time.rate.denom;
     }
+
     return buff_time + pw_buff_time - time_diff + add_delay;
 }
 
@@ -201,8 +217,7 @@ void PipeWireOutput::drain()
     }
 
     pw_stream_flush(m_stream, true);
-    // For triggering on_drained() loop_timed_wait after flush necessary
-    pw_thread_loop_timed_wait(m_loop, 1);
+    pw_thread_loop_timed_wait(m_loop, 1); // trigger on_drained() callback
     pw_thread_loop_unlock(m_loop);
 }
 
@@ -394,16 +409,12 @@ bool PipeWireOutput::init_stream()
     m_stream_listener = {};
     pw_stream_add_listener(m_stream, &m_stream_listener, &stream_events, this);
 
-    spa_audio_format pw_format = SPA_AUDIO_FORMAT_UNKNOWN;
-    if (!is_dsd(m_aud_format))
+    auto pw_format = to_pipewire_format(m_aud_format);
+    if (pw_format == SPA_AUDIO_FORMAT_UNKNOWN)
     {
-        pw_format = to_pipewire_format(m_aud_format);
-        if (pw_format == SPA_AUDIO_FORMAT_UNKNOWN)
-        {
-            AUDERR("PipeWireOutput: unknown audio format\n");
-            pw_thread_loop_unlock(m_loop);
-            return false;
-        }
+        AUDERR("PipeWireOutput: unknown audio format\n");
+        pw_thread_loop_unlock(m_loop);
+        return false;
     }
 
     if (!connect_stream(pw_format))
@@ -439,31 +450,17 @@ bool PipeWireOutput::connect_stream(enum spa_audio_format format)
     uint8_t buffer[1024];
     struct spa_pod_builder b = SPA_POD_BUILDER_INIT(buffer, sizeof buffer);
 
-    const struct spa_pod * params[1];
+    struct spa_audio_info_raw audio_info = {
+        .format = format,
+        .flags = SPA_AUDIO_FLAG_NONE,
+        .rate = m_rate,
+        .channels = m_channels
+    };
 
-    if ( format != SPA_AUDIO_FORMAT_UNKNOWN )
-    {   // PCM params
-        struct spa_audio_info_raw audio_info = {
-            .format = format,
-            .flags = SPA_AUDIO_FLAG_NONE,
-            .rate = m_rate,
-            .channels = m_channels
-        };
-        set_channel_map<spa_audio_info_raw>(&audio_info, m_channels);
-        params[0] = spa_format_audio_raw_build(&b, SPA_PARAM_EnumFormat, &audio_info);
-    }
-    else
-    {   // DSD params
-        struct spa_audio_info_dsd dsd_audio_info = {
-            .bitorder = (m_aud_format == FMT_DSD_LSB8) ? SPA_PARAM_BITORDER_lsb : SPA_PARAM_BITORDER_msb,
-            .flags = SPA_AUDIO_DSD_FLAG_NONE,
-            .interleave = FMT_SIZEOF(m_aud_format),
-            .rate = m_rate * 4,
-            .channels = m_channels
-        };
-        set_channel_map<spa_audio_info_dsd>(&dsd_audio_info, m_channels);
-        params[0] = spa_format_audio_dsd_build(&b, SPA_PARAM_EnumFormat, &dsd_audio_info);
-    }
+    set_channel_map(&audio_info, m_channels);
+
+    const struct spa_pod * params[1];
+    params[0] = spa_format_audio_raw_build(&b, SPA_PARAM_EnumFormat, &audio_info);
 
     auto stream_flags = static_cast<pw_stream_flags>(PW_STREAM_FLAG_AUTOCONNECT |
                                                      PW_STREAM_FLAG_MAP_BUFFERS |
@@ -573,7 +570,6 @@ enum spa_audio_format PipeWireOutput::to_pipewire_format(int format)
     switch (format)
     {
         case FMT_FLOAT:   return SPA_AUDIO_FORMAT_F32_LE;
-        case FMT_FLOAT64: return SPA_AUDIO_FORMAT_F64_LE;
 
         case FMT_S8:      return SPA_AUDIO_FORMAT_S8;
         case FMT_U8:      return SPA_AUDIO_FORMAT_U8;
@@ -602,8 +598,7 @@ enum spa_audio_format PipeWireOutput::to_pipewire_format(int format)
     }
 }
 
-template<typename SPAINF>
-void PipeWireOutput::set_channel_map(SPAINF * info, int channels)
+void PipeWireOutput::set_channel_map(struct spa_audio_info_raw * info, int channels)
 {
     switch (channels)
     {
