@@ -8,7 +8,7 @@ project('audacious-plugins', 'c', 'cpp',
         ])
 
 
-copyright = 'Copyright (C) 2001-2024 Audacious developers and others'
+copyright = 'Copyright (C) 2001-2025 Audacious developers and others'
 
 
 have_darwin = host_machine.system() == 'darwin'
@@ -309,6 +309,7 @@ if meson.version().version_compare('>= 0.53')
       'Album Art': true,
       'Blur Scope': true,
       'OpenGL Spectrum Analyzer': get_variable('have_qtglspectrum', false),
+      'Playback History': true,
       'Playlist Manager': true,
       'Search Tool': true,
       'Song Info': true,
@@ -331,6 +332,7 @@ if meson.version().version_compare('>= 0.53')
       'Search Tool': true,
       'Spectrum Analyzer (2D)': true,
       'Status Icon': true,
+      'VU Meter': get_option('vumeter'),
       'X11 Global Hotkeys': get_variable('have_hotkey', false),
       'X11 On-Screen Display (aosd)': get_variable('have_aosd', false),
     }, section: 'GTK Support')

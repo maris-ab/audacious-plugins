@@ -97,6 +97,7 @@ if conf.has('USE_QT')
   subdir('albumart-qt')
   subdir('blur_scope-qt')
   subdir('lyrics-qt')
+  subdir('playback-history-qt')
   subdir('playlist-manager-qt')
   subdir('qt-spectrum')
   subdir('qtui')
@@ -158,6 +159,10 @@ if conf.has('USE_GTK')
 
   if get_option('hotkey')
     subdir('hotkey')
+  endif
+
+  if get_option('vumeter')
+    subdir('vumeter')
   endif
 endif
 

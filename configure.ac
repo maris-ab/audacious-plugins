@@ -6,7 +6,7 @@ dnl Initialize
 dnl ==========
 AC_PREREQ([2.59])
 AC_INIT([audacious-plugins], [4.5-devel])
-AC_COPYRIGHT([Copyright (C) 2001-2024 Audacious developers and others])
+AC_COPYRIGHT([Copyright (C) 2001-2025 Audacious developers and others])
 
 AC_DEFINE_UNQUOTED([PACKAGE], "$PACKAGE_NAME", [Name of package])
 AC_DEFINE_UNQUOTED([VERSION], "$PACKAGE_VERSION", [Version number of package])
@@ -85,11 +85,11 @@ if test "x$USE_GTK" = "xyes" ; then
     EFFECT_PLUGINS="$EFFECT_PLUGINS ladspa"
     GENERAL_PLUGINS="$GENERAL_PLUGINS albumart lyrics-gtk playlist-manager search-tool statusicon"
     GENERAL_PLUGINS="$GENERAL_PLUGINS gtkui skins"
-    VISUALIZATION_PLUGINS="$VISUALIZATION_PLUGINS blur_scope cairo-spectrum"
+    VISUALIZATION_PLUGINS="$VISUALIZATION_PLUGINS blur_scope cairo-spectrum vumeter"
 fi
 
 if test "x$USE_QT" = "xyes" ; then
-    GENERAL_PLUGINS="$GENERAL_PLUGINS albumart-qt lyrics-qt playlist-manager-qt search-tool-qt song-info-qt statusicon-qt"
+    GENERAL_PLUGINS="$GENERAL_PLUGINS albumart-qt lyrics-qt playback-history-qt playlist-manager-qt search-tool-qt song-info-qt statusicon-qt"
     GENERAL_PLUGINS="$GENERAL_PLUGINS qtui skins-qt"
     VISUALIZATION_PLUGINS="$VISUALIZATION_PLUGINS blur_scope-qt qt-spectrum vumeter-qt"
 fi
@@ -873,6 +873,7 @@ if test "x$USE_GTK" = "xyes" ; then
     echo "  Search Tool:                            yes"
     echo "  Spectrum Analyzer (2D):                 yes"
     echo "  Status Icon:                            yes"
+    echo "  VU Meter:                               yes"
     echo "  X11 Global Hotkeys:                     $have_hotkey"
     echo "  X11 On-Screen Display (aosd):           $have_aosd"
     echo
@@ -887,6 +888,7 @@ if test "x$USE_QT" = "xyes" ; then
     echo "  Album Art:                              yes"
     echo "  Blur Scope:                             yes"
     echo "  OpenGL Spectrum Analyzer:               $have_qtglspectrum"
+    echo "  Playback History:                       yes"
     echo "  Playlist Manager:                       yes"
     echo "  Search Tool:                            yes"
     echo "  Song Info:                              yes"

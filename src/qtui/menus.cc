@@ -81,6 +81,10 @@ static void configure_visualizations()
 }
 
 static void show_search_tool() { hook_call("qtui show search tool", nullptr); }
+static void show_playback_history()
+{
+    hook_call("qtui show playback history", nullptr);
+}
 static void show_playlist_manager()
 {
     hook_call("qtui show playlist manager", nullptr);
@@ -161,6 +165,9 @@ QMenuBar * qtui_build_menubar(QWidget * parent)
         audqt::MenuCommand(
             {N_("Song _Info ..."), "dialog-information", "Ctrl+I"},
             audqt::infowin_show_current),
+        audqt::MenuCommand(
+            {N_("Playback Histor_y ..."), "view-history", "Ctrl+H"},
+            show_playback_history),
         audqt::MenuSep(),
         audqt::MenuCommand({N_("Set Repeat Point _A"), nullptr, "Ctrl+1"},
                            set_ab_repeat_a),
@@ -306,7 +313,7 @@ QMenu * qtui_build_pl_menu(QWidget * parent)
         audqt::MenuCommand({N_("_Paste"), "edit-paste", "Ctrl+V"}, pl_paste),
         audqt::MenuCommand({N_("Paste at _End"), "edit-paste", "Shift+Ctrl+V"},
                            pl_paste_end),
-        audqt::MenuCommand({N_("Select _All"), "edit-select-all"},
+        audqt::MenuCommand({N_("Select _All"), "edit-select-all", "Ctrl+A"},
                            pl_select_all),
         audqt::MenuSep(),
         audqt::MenuSub({N_("_Services")}, services_menu_pl)};
