@@ -55,6 +55,23 @@ DATA = Skins/Classic/balance.png	\
        Skins/Default/titlebar.png	\
        Skins/Default/viscolor.txt	\
        Skins/Default/volume.png		\
+       Skins/Glare/balance.png		\
+       Skins/Glare/cbuttons.png		\
+       Skins/Glare/eq_ex.png		\
+       Skins/Glare/eqmain.png		\
+       Skins/Glare/main.png			\
+       Skins/Glare/monoster.png		\
+       Skins/Glare/nums_ex.png		\
+       Skins/Glare/playpaus.png		\
+       Skins/Glare/pledit.png		\
+       Skins/Glare/pledit.txt		\
+       Skins/Glare/posbar.png		\
+       Skins/Glare/readme.txt		\
+       Skins/Glare/shufrep.png		\
+       Skins/Glare/text.png			\
+       Skins/Glare/titlebar.png		\
+       Skins/Glare/viscolor.txt		\
+       Skins/Glare/volume.png		\
        Skins/Ivory/balance.png		\
        Skins/Ivory/cbuttons.png		\
        Skins/Ivory/eq_ex.png		\
@@ -121,4 +138,21 @@ DATA = Skins/Classic/balance.png	\
        Skins/Refugee/text.png		\
        Skins/Refugee/titlebar.png	\
        Skins/Refugee/viscolor.txt	\
-       Skins/Refugee/volume.png
+       Skins/Refugee/volume.png		\
+       Skins/Winamp2.9/balance.png	\
+       Skins/Winamp2.9/main.png		\
+       Skins/Winamp2.9/pledit.png	\
+       Skins/Winamp2.9/shufrep.png	\
+       Skins/Winamp2.9/volume.png	\
+       Skins/Winamp2.9/cbuttons.png	\
+       Skins/Winamp2.9/monoster.png	\
+       Skins/Winamp2.9/pledit.txt	\
+       Skins/Winamp2.9/text.png		\
+       Skins/Winamp2.9/eq_ex.png	\
+       Skins/Winamp2.9/nums_ex.png	\
+       Skins/Winamp2.9/posbar.png	\
+       Skins/Winamp2.9/titlebar.png	\
+       Skins/Winamp2.9/eqmain.png	\
+       Skins/Winamp2.9/playpaus.png	\
+       Skins/Winamp2.9/readme.txt	\
+       Skins/Winamp2.9/viscolor.txt
