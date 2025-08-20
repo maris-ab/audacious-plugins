@@ -105,6 +105,9 @@ QVariant PlaylistModel::data(const QModelIndex & index, int role) const
         {
             tuple = m_playlist.entry_tuple(index.row(), Playlist::NoWait);
 
+            if (col == Filename)
+                return filename(tuple);
+
             switch (tuple.get_value_type(s_fields[col]))
             {
             case Tuple::Empty:
@@ -120,15 +123,15 @@ QVariant PlaylistModel::data(const QModelIndex & index, int role) const
         switch (col)
         {
         case EntryNumber:
-            return QString("%1").arg(index.row() + 1);
+            return QVariant(index.row() + 1);
         case QueuePos:
             return queuePos(index.row());
         case Length:
             return QString(str_format_time(val));
         case Bitrate:
-            return QString("%1 kbit/s").arg(val);
+            return QString(str_printf(_("%d kbit/s"), val));
         default:
-            return QString("%1").arg(val);
+            return QVariant(val);
         }
 
     case Qt::FontRole:
@@ -147,7 +150,6 @@ QVariant PlaylistModel::data(const QModelIndex & index, int role) const
             if (m_playlist == Playlist::playing_playlist())
                 icon_name = aud_drct_get_paused() ? "media-playback-pause"
                                                   : "media-playback-start";
-
             return QIcon::fromTheme(icon_name);
         }
         else if (col == m_playing_col)
@@ -297,12 +299,34 @@ QString PlaylistModel::queuePos(int row) const
         return QString("#%1").arg(at + 1);
 }
 
+QString PlaylistModel::filename(const Tuple & tuple) const
+{
+    String basename = tuple.get_str(Tuple::Basename);
+    String suffix = tuple.get_str(Tuple::Suffix);
+
+    if (suffix)
+        return QString("%1.%2").arg(
+            static_cast<const char *>(basename),
+            static_cast<const char *>(suffix));
+
+    return QString(basename);
+}
+
 /* ---------------------------------- */
 
 void PlaylistProxyModel::setFilter(const char * filter)
 {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 10, 0)
+    beginFilterChange();
+#endif
+
     m_searchTerms = str_list_to_index(filter, " ");
+
+#if QT_VERSION >= QT_VERSION_CHECK(6, 10, 0)
+    endFilterChange(QSortFilterProxyModel::Direction::Rows);
+#else
     invalidateFilter();
+#endif
 }
 
 bool PlaylistProxyModel::filterAcceptsRow(int source_row,
