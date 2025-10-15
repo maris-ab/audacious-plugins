@@ -221,29 +221,37 @@ static void SDLCALL sdl3_callback (void * user, SDL_AudioStream * stream,
 
 bool SDLOutput::open_audio (int format, int rate, int chan, String & error)
 {
+#if HAVE_LIBSDL3
     SDL_AudioFormat sdl_fmt;
 
     switch (format)
     {
-    case FMT_S16_NE:
-        sdl_fmt = AUDIO_S16;
+    case FMT_S8:
+        sdl_fmt = SDL_AUDIO_S8;
         break;
-#if SDL_MAJOR_VERSION >= 2
+    case FMT_U8:
+        sdl_fmt = SDL_AUDIO_U8;
+        break;
+    case FMT_S16_NE:
+        sdl_fmt = SDL_AUDIO_S16;
+        break;
     case FMT_S32_NE:
-        sdl_fmt = AUDIO_S32;
+        sdl_fmt = SDL_AUDIO_S32;
         break;
     case FMT_FLOAT:
-        sdl_fmt = AUDIO_F32;
+        sdl_fmt = SDL_AUDIO_F32;
         break;
-#endif
     default:
-        error = String ("SDL error: Only S16"
-#if SDL_MAJOR_VERSION >= 2
-        ", S32 and FLOAT"
-#endif
-        " native endian audio is supported.");
+        error = String ("SDL error: Only S16, S32 and FLOAT, native endian audio is supported.");
         return false;
     }
+#else
+    if (format != FMT_S16_NE)
+    {
+        error = String ("SDL error: Only signed 16-bit, native endian audio is supported.");
+        return false;
+    }
+#endif
 
     AUDDBG ("Opening audio for %d channels, %d Hz.\n", chan, rate);
 
@@ -257,7 +265,7 @@ bool SDLOutput::open_audio (int format, int rate, int chan, String & error)
     paused_flag = false;
 
 #if HAVE_LIBSDL3
-    const SDL_AudioSpec spec = { SDL_AUDIO_S16, chan, rate };
+    const SDL_AudioSpec spec = { sdl_fmt, chan, rate };
     sdlout_stream = SDL_OpenAudioDeviceStream (
      SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, & spec, sdl3_callback, nullptr);
 
@@ -265,7 +273,7 @@ bool SDLOutput::open_audio (int format, int rate, int chan, String & error)
 #else
     SDL_AudioSpec spec = {0};
     spec.freq = rate;
-    spec.format = sdl_fmt;
+    spec.format = AUDIO_S16;
     spec.channels = chan;
     spec.samples = 4096;
     spec.callback = callback;
